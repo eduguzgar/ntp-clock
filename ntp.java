@@ -90,12 +90,9 @@ class JavaNTP {
         long tiempo = deArrayCuatroBytesALong(message);
         byte [] hms = deTLongAHMS(tiempo, UTC);
 
-        /* Mostramos por pantalla.
-        Por si le apetece pensar que es char casteamos a int y aplicamos mascara,
-        aun que los limites de los valores de horas minutos y segundos jamás pondrán un 1 en la parte alta del byte. */
+        /* Mostramos por pantalla. */
         System.out.printf("%02d:%02d:%02d\n", hms[0] & 0xFF, hms[1] & 0xFF, hms[2] & 0xFF);
         clienteNTP.CierraSocket();
-
     }
 
 }
