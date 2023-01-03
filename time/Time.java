@@ -1,7 +1,7 @@
 package time;
 
 public class Time {
-    public static byte[] timeSecondsToHMS(long time_seconds)
+    public static byte[] secondsToHMS(long time_seconds)
     {
         byte[] time_hms = new byte[3];
         time_hms[0] = (byte)(((time_seconds % 86400) / 3600));

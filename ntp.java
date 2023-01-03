@@ -94,7 +94,7 @@ class NTPClient {
 
         ntp_client.close();
 
-        byte [] local_time_hms = Time.timeSecondsToHMS(local_time);
+        byte [] local_time_hms = Time.secondsToHMS(local_time);
 
         System.out.printf("%02d:%02d:%02d\n", local_time_hms[0], local_time_hms[1], local_time_hms[2]);
     }
