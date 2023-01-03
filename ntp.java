@@ -1,56 +1,58 @@
-package codigo;
-
 import java.io.*;
 import java.net.*;
+import java.time.OffsetDateTime;
 
-class JavaNTP {
+import time.Time;
 
-    DatagramSocket socket;          // Atributos no estáticos, cada instancia tendra su propio socket (conexión)
-    String dst_address;
-    int src_port;
-    int dst_port;
+class NTPClient {
+    private DatagramSocket socket;          // No static attributes, each instance has its own socket
+    String ntp_server;
+    int listen_port;
 
-    JavaNTP(){};
-    JavaNTP(String dst_address, int src_port, int dst_port)
+    private static final int NTP_UDP_PORT = 123;
+
+    NTPClient(){};
+    NTPClient(String ntp_server, int listen_port)
     {
-        this.dst_address = dst_address;
-        this.src_port = src_port;
-        this.dst_port = dst_port;
+        this.ntp_server = ntp_server;
+        this.listen_port = listen_port;
     }
 
-    void InicializaSocket()
+    void init()
     {
         try {
-            socket = new DatagramSocket(src_port);
+            this.socket = new DatagramSocket(this.listen_port);
         } catch (Exception e) {
             System.err.println(e);
         }
     }
 
-    void CierraSocket() { socket.close(); }
+    void close() {
+        this.socket.close();
+    }
 
-    void enviarPaqueteNTP()
+    private void sendPacket()
     {
         byte[] buffer = new byte[48];
         buffer[0] = 35;
 
         try {
-            InetAddress ip_dst_address = InetAddress.getByName(dst_address);
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip_dst_address, dst_port);
-            socket.send(packet);
+            InetAddress ntp_server_ip = InetAddress.getByName(this.ntp_server);
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ntp_server_ip, NTP_UDP_PORT);
+            this.socket.send(packet);
 
         } catch (Exception e) {
             System.err.println(e);
         }
     }
 
-    byte[] recibirPaqueteNTP()
+    private byte[] getPacket()
     {
         byte[] buffer = new byte[48];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
         try {
-            socket.receive(packet);
+            this.socket.receive(packet);
         } catch (Exception e) {
             System.err.println(e);
         }
@@ -58,41 +60,42 @@ class JavaNTP {
         return buffer;
     }
 
-    static long deArrayCuatroBytesALong(byte[] vector)
+    private long extractTimeSecondsFromPacket(byte[] ntp_packet)
     {
-        long tiempo = 0;
+        long time_seconds = 0;
 
         for(int i = 0; i < 4; i++)
-            tiempo |= (vector[40 + i] & 0xffL) << 24 - 8 * i;
-        
-        return tiempo;
+            time_seconds |= (ntp_packet[40 + i] & 0xffL) << 24 - 8 * i;
+
+        return time_seconds;
     }
 
-    static byte[] deTLongAHMS(long t, short UTC)
+    long getUtcTime()
     {
-        byte[] hms = new byte[3];
-        t += UTC * 3600; 
-        hms[0] = (byte)(((t%86400)/3600));
-        hms[1] = (byte)((t%3600)/60);
-        hms[2] = (byte)(t%60);
+        this.sendPacket();
+        byte[] ntp_packet = this.getPacket();
 
-        return hms;
+        return this.extractTimeSecondsFromPacket(ntp_packet);
+    }
+
+    long getLocalTime()
+    {
+        long time_utc = this.getUtcTime();
+        int timezone_offset = OffsetDateTime.now().getOffset().getTotalSeconds();
+        return time_utc + timezone_offset;
     }
 
     public static void main(String[] args)
     {
-        short UTC = 1;
-        JavaNTP clienteNTP = new JavaNTP("130.206.3.166", 1500, 123); // Creamos nuestra instancia.
-        clienteNTP.InicializaSocket();
-        clienteNTP.enviarPaqueteNTP();
-        byte[] message = clienteNTP.recibirPaqueteNTP();
+        NTPClient ntp_client = new NTPClient("es.pool.ntp.org", 25000);
+        ntp_client.init();
 
-        long tiempo = deArrayCuatroBytesALong(message);
-        byte [] hms = deTLongAHMS(tiempo, UTC);
+        long local_time = ntp_client.getLocalTime();
 
-        /* Mostramos por pantalla. */
-        System.out.printf("%02d:%02d:%02d\n", hms[0] & 0xFF, hms[1] & 0xFF, hms[2] & 0xFF);
-        clienteNTP.CierraSocket();
+        ntp_client.close();
+
+        byte [] local_time_hms = Time.timeSecondsToHMS(local_time);
+
+        System.out.printf("%02d:%02d:%02d\n", local_time_hms[0], local_time_hms[1], local_time_hms[2]);
     }
-
 }
